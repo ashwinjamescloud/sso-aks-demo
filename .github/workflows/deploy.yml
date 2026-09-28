@@ -1,0 +1,79 @@
+name: Build and deploy sso-demo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write   # required for OIDC federation with Azure
+  contents: read
+
+env:
+  NAMESPACE: sso-demo
+  RELEASE_NAME: sso-demo
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Uses the federated credential created for this repo/branch -
+      # no client secret is stored in GitHub at all.
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image to ACR
+        run: |
+          az acr build \
+            --registry ${{ vars.ACR_NAME }} \
+            --image sso-demo:${{ github.sha }} \
+            .
+
+      - name: Get AKS admin credentials
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --name ${{ vars.CLUSTER_NAME }} \
+            --admin \
+            --overwrite-existing
+
+      - name: Ensure namespace exists
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # The app's real secret values never live in Helm values or the repo.
+      # This step creates/updates the Secret directly from GitHub secrets.
+      - name: Ensure app secret exists
+        run: |
+          kubectl create secret generic sso-demo-secrets \
+            --namespace ${{ env.NAMESPACE }} \
+            --from-literal=ENTRA_CLIENT_SECRET='${{ secrets.ENTRA_CLIENT_SECRET }}' \
+            --from-literal=SESSION_SECRET='${{ secrets.SESSION_SECRET }}' \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install ${{ env.RELEASE_NAME }} ./helm/sso-demo \
+            --namespace ${{ env.NAMESPACE }} \
+            --create-namespace \
+            --set image.repository=${{ vars.ACR_NAME }}.azurecr.io/sso-demo \
+            --set image.tag=${{ github.sha }} \
+            --set serviceAccount.managedIdentityClientId=${{ vars.UAMI_CLIENT_ID }} \
+            --set entra.tenantId=${{ vars.ENTRA_TENANT_ID }} \
+            --set entra.clientId=${{ vars.ENTRA_APP_CLIENT_ID }} \
+            --set keyvault.url=${{ vars.KEYVAULT_URL }} \
+            --wait --timeout 3m
+
+      - name: Show rollout status
+        run: kubectl rollout status deployment/${{ env.RELEASE_NAME }} -n ${{ env.NAMESPACE }}

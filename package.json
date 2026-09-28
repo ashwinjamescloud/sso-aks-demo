@@ -1,0 +1,20 @@
+{
+  "name": "sso-aks-demo",
+  "version": "1.0.0",
+  "description": "Learning app: Entra ID SSO + Azure Managed/Workload Identity + AKS",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.4.1",
+    "@azure/keyvault-secrets": "^4.8.0",
+    "@azure/msal-node": "^2.13.1",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0"
+  }
+}

@@ -1,0 +1,50 @@
+# Default values for the sso-demo chart.
+# None of these are secret - the real client secret lives in a Kubernetes
+# Secret created outside Helm (see existingSecretName below), never in values.
+
+replicaCount: 2
+
+image:
+  repository: CHANGE-ME.azurecr.io/sso-demo   # overridden by --set in CI
+  tag: latest                                  # overridden with the commit SHA in CI
+  pullPolicy: Always
+
+serviceAccount:
+  name: sso-demo-sa
+  # Client ID of the User-Assigned Managed Identity federated to this
+  # ServiceAccount via Azure Workload Identity. Not secret, but environment-
+  # specific, so it's supplied via --set rather than hardcoded here.
+  managedIdentityClientId: ""
+
+entra:
+  tenantId: ""
+  clientId: ""
+  redirectUri: "http://localhost:3000/auth/redirect"
+  postLogoutRedirectUri: "http://localhost:3000"
+
+keyvault:
+  url: ""
+  secretName: "demo-secret"
+
+# Name of a Kubernetes Secret, created OUTSIDE this chart (kubectl or a
+# pipeline step), holding ENTRA_CLIENT_SECRET and SESSION_SECRET. Helm never
+# manages this Secret's contents so those values never land in a values file
+# or in git.
+existingSecretName: sso-demo-secrets
+
+service:
+  port: 80
+  targetPort: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+ingress:
+  enabled: false
+  host: sso-demo.example.com
+  clusterIssuer: letsencrypt-prod

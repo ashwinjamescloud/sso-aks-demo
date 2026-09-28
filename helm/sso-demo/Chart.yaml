@@ -1,0 +1,6 @@
+apiVersion: v2
+name: sso-demo
+description: SSO (Entra ID) + Managed Identity + AKS learning app
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
