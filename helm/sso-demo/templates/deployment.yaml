@@ -5,6 +5,13 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    # On a capacity-constrained cluster (e.g. a single small node), the
+    # default RollingUpdate strategy can deadlock: it briefly wants room for
+    # replicas+1 pods before removing the old one. Recreate terminates the
+    # old pod(s) first, then starts the new one - a short gap in availability,
+    # acceptable for a learning/single-node setup.
+    type: Recreate  
   selector:
     matchLabels:
       app: {{ .Release.Name }}
