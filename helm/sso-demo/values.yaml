@@ -2,7 +2,7 @@
 # None of these are secret - the real client secret lives in a Kubernetes
 # Secret created outside Helm (see existingSecretName below), never in values.
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: CHANGE-ME.azurecr.io/sso-demo   # overridden by --set in CI
